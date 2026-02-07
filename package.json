@@ -1,4 +1,89 @@
 {
   "name": "mct-affiliate",
   "version": "1.0.0",
-  "description": "MCT Affiliate Module",
+  "description": "MCT Affiliate Module for managing affiliate tracking and interactions",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "build": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "mongoose": "^5.10.9",
+    "ts-node": "^9.0.0",
+    "typescript": "^4.0.3",
+    "body-parser": "^1.19.0",
+    "dotenv": "^8.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^14.6.4",
+    "@types/express": "^4.17.8",
+    "@types/mongoose": "^5.7.36",
+    "jest": "^26.4.2",
+    "@types/jest": "^26.0.14",
+    "ts-jest": "^26.4.0"
+  }
+}
+### `src/index.ts`
+import express from 'express';
+import bodyParser from 'body-parser';
+import { connectDB } from './db/schema';
+import { setupRoutes } from './api/routes';
+import { setupMCTServer } from './mct/server';
+const app = express();
+const port = process.env.PORT || 3000;
+app.use(bodyParser.json());
+connectDB();
+setupRoutes(app);
+setupMCTServer();
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
+### `src/api/routes.ts`
+import { Express } from 'express';
+import { getAffiliates, createAffiliate, updateAffiliate, deleteAffiliate } from '../services/affiliateService';
+export function setupRoutes(app: Express) {
+  app.get('/affiliates', getAffiliates);
+  app.post('/affiliates', createAffiliate);
+  app.put('/affiliates/:id', updateAffiliate);
+  app.delete('/affiliates/:id', deleteAffiliate);
+}
+### `src/db/schema.ts`
+import mongoose from 'mongoose';
+const AffiliateSchema = new mongoose.Schema({
+  name: String,
+  email: String,
+  url: String,
+  campaigns: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Campaign' }]
+});
+export const Affiliate = mongoose.model('Affiliate', AffiliateSchema);
+export function connectDB() {
+  const uri = process.env.MONGODB_URI || 'mongodb://localhost/mct-affiliate';
+  mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+}
+### `src/mct/server.ts`
+export function setupMCTServer() {
+  console.log('MCT Server setup complete.');
+}
+### `src/mct/tools.ts`
+// This would include specific MCP tools implementations
+### `src/services/affiliateService.ts`
+import { Affiliate } from '../db/schema';
+export const getAffiliates = async (req, res) => {
+  const affiliates = await Affiliate.find();
+  res.json(affiliates);
+};
+export const createAffiliate = async (req, res) => {
+  const newAffiliate = new Affiliate(req.body);
+  await newAffiliate.save();
+  res.status(201).send(newAffiliate);
+};
+export const updateAffiliate = async (req, res) => {
+  const updatedAffiliate = await Affiliate.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  res.send(updatedAffiliate);
+};
+export const deleteAffiliate = async (req, res) => {
+  await Affiliate.findByIdAndDelete(req.params.id);
+  res.status(204).send();
+};
